@@ -108,8 +108,8 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request) {
 			UserID:   authenticated.ID,
 			Username: authenticated.UserName,
 			StandardClaims: jwt.StandardClaims{
-				// ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-				ExpiresAt: time.Now().Add(1 * time.Second).Unix(),
+				ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+				// ExpiresAt: time.Now().Add(1 * time.Second).Unix(),
 
 			},
 		}
