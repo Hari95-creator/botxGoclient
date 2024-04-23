@@ -1,13 +1,11 @@
-// main.go
-
 package main
 
 import (
 	"database/sql"
 	"log"
 	"net/http"
-	"whatbot/controller"
 	dbconfig "whatbot/dbConfig"
+	"whatbot/controller"
 	"whatbot/model"
 
 	_ "github.com/lib/pq"
@@ -21,17 +19,14 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize user repository
 	userRepository := model.NewUserRepository(db)
 
-	// Initialize user controller
 	userController := controller.NewUserController(userRepository)
 
-	// // Define routes
-	// http.HandleFunc("/login", userController.Login)
+	customerRepository := model.NewCustomerRepository(db)
 
-	// // Start the server
-	// log.Fatal(http.ListenAndServe(":8080", nil))
+	customerController := controller.NewCustomerController(customerRepository)
+
 
 	corsMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,19 +34,18 @@ func main() {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-			// Handle preflight requests
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
 
-			// Call the next handler
 			next.ServeHTTP(w, r)
 		})
 	}
 
-	// Define routes
 	http.Handle("/login", corsMiddleware(http.HandlerFunc(userController.Login)))
-
+	http.Handle("/customer/list", corsMiddleware(http.HandlerFunc(customerController.ListAllCustomer)))
+	
 	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Server Started In Port 8080")
 }

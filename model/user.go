@@ -1,13 +1,13 @@
 package model
 
-import (
-	"database/sql"
-	"log"
+		import (
+			"database/sql"
+			"log"
 
-	"time"
+			"time"
 
-	"golang.org/x/crypto/bcrypt"
-)
+			"golang.org/x/crypto/bcrypt"
+		)
 
 type User struct {
 	ID                      int
