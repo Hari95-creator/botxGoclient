@@ -10,12 +10,12 @@ type Customer struct {
     ID           int
     GID          string
     PHONE_NUMBER string
-	NAME         string
+    NAME         string
     CREATED_DATE time.Time
 }
 
 type CustomerRepository interface {
-    CustomerList() ([]*Customer, error)
+    CustomerList(offset, limit int) ([]*Customer, error)
 }
 
 type customerRepo struct {
@@ -26,10 +26,12 @@ func NewCustomerRepository(db *sql.DB) CustomerRepository {
     return &customerRepo{db: db}
 }
 
-func (cu *customerRepo) CustomerList() ([]*Customer, error) {
+func (cu *customerRepo) CustomerList(offset, limit int) ([]*Customer, error) {
     var customers []*Customer
 
-    rows, err := cu.db.Query("SELECT id, gid ,phone_number,name,created_date FROM public.customer")
+    // Modify the SQL query to include pagination
+    query := "SELECT id, gid, phone_number, name, created_date FROM public.customer LIMIT $1 OFFSET $2"
+    rows, err := cu.db.Query(query, limit, offset)
     if err != nil {
         log.Println("Error retrieving customers from database:", err)
         return nil, err
@@ -38,7 +40,7 @@ func (cu *customerRepo) CustomerList() ([]*Customer, error) {
 
     for rows.Next() {
         var customer Customer
-        err := rows.Scan(&customer.ID, &customer.GID, &customer.PHONE_NUMBER,&customer.NAME, &customer.CREATED_DATE)
+        err := rows.Scan(&customer.ID, &customer.GID, &customer.PHONE_NUMBER, &customer.NAME, &customer.CREATED_DATE)
         if err != nil {
             log.Println("Error scanning customer row:", err)
             continue
