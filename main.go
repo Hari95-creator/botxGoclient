@@ -27,6 +27,9 @@ func main() {
 
 	customerController := controller.NewCustomerController(customerRepository)
 
+	whatsappController := controller.TemplateController{}
+
+
 
 	corsMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,6 +48,7 @@ func main() {
 
 	http.Handle("/login", corsMiddleware(http.HandlerFunc(userController.Login)))
 	http.Handle("/customer/list", corsMiddleware(http.HandlerFunc(customerController.ListAllCustomer)))
+	http.Handle("/templates/", corsMiddleware(http.HandlerFunc(whatsappController.GetAllTemplatesHandler)))
 	
 	log.Fatal(http.ListenAndServe(":8080", nil))
 	log.Println("Server Started In Port 8080")
