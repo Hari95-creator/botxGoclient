@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	dbconfig "whatbot/dbConfig"
 	"whatbot/controller"
+	dbconfig "whatbot/dbConfig"
 	"whatbot/model"
 
 	_ "github.com/lib/pq"
@@ -29,12 +29,10 @@ func main() {
 
 	whatsappController := controller.TemplateController{}
 
-
-
 	corsMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 			if r.Method == "OPTIONS" {
@@ -49,7 +47,8 @@ func main() {
 	http.Handle("/login", corsMiddleware(http.HandlerFunc(userController.Login)))
 	http.Handle("/customer/list", corsMiddleware(http.HandlerFunc(customerController.ListAllCustomer)))
 	http.Handle("/templates/", corsMiddleware(http.HandlerFunc(whatsappController.GetAllTemplatesHandler)))
-	
+	http.Handle("/sendmessage/", corsMiddleware(http.HandlerFunc(whatsappController.SendsingleMsg)))
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
 	log.Println("Server Started In Port 8080")
 }

@@ -1,61 +1,37 @@
 package controller
 
 import (
-    "encoding/json"
-    "log"
-    "net/http"
-    "whatbot/model"
-	"os"
+	"encoding/json"
+	"log"
+	"net/http"
+	envconfig "whatbot/dbConfig" // This should match the package name and path where envconfig.go is located
+	"whatbot/model"
 )
 
 type TemplateController struct{}
 
 func (tc *TemplateController) GetAllTemplatesHandler(w http.ResponseWriter, r *http.Request) {
-    
-	_, err := os.Stat("config.json")
-	if os.IsNotExist(err) {
-		log.Println("Config file not found")
-		http.Error(w, "Config file not found", http.StatusInternalServerError)
-		return
-	}
-
-	configFile, err := os.ReadFile("config.json")
+	// Load configuration using the new envconfig package
+	config, err := envconfig.LoadConfig("config.json")
 	if err != nil {
-		log.Printf("Error reading config file: %v", err)
+		log.Panicf("conferr")
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	templates, err := model.GetAllTemplates(config.AccessToken, config.WabaId)
+
+	if err != nil {
+		http.Error(w, "Failed to fetch templates", http.StatusBadRequest)
+		return
+	}
+
+	templatesJSON, err := json.Marshal(templates)
+	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	type Config struct {
-		AccessToken string `json:"access_token"`
-		WabaID      string `json:"waba_id"`
-	}
-
-	var config Config
-	if err := json.Unmarshal(configFile, &config); err != nil {
-		log.Printf("Error unmarshalling config data: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	accessToken := config.AccessToken
-	wabaID := config.WabaID
-
-    templates, err := model.GetAllTemplates(accessToken, wabaID)
-    if err != nil {
-        log.Printf("Error fetching templates: %v", err)
-        http.Error(w, "Failed to fetch templates", http.StatusInternalServerError)
-        return
-    }
-
-    templatesJSON, err := json.Marshal(templates)
-    if err != nil {
-        log.Printf("Error marshalling templates to JSON: %v", err)
-        http.Error(w, "Internal server error", http.StatusInternalServerError)
-        return
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
-    w.Write(templatesJSON)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(templatesJSON)
 }
