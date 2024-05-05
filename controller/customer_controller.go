@@ -8,16 +8,20 @@ import (
 	"whatbot/model"
 )
 
+// CustomerController handles HTTP requests related to customers
 type CustomerController struct {
 	CustomerService model.CustomerRepository
+	CSVService      model.CSVRepository
 }
 
-func NewCustomerController(customerService model.CustomerRepository) *CustomerController {
-	return &CustomerController{CustomerService: customerService}
+// NewCustomerController creates a new instance of CustomerController
+func NewCustomerController(customerService model.CustomerRepository, csvService model.CSVRepository) *CustomerController {
+	return &CustomerController{CustomerService: customerService, CSVService: csvService}
 }
 
+// ListAllCustomer returns a list of customers with pagination
 func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *http.Request) {
-
+	// Parse query parameters for pagination
 	pageStr := r.URL.Query().Get("page")
 	pageSizeStr := r.URL.Query().Get("pageSize")
 
@@ -34,6 +38,7 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 	// Calculate offset
 	offset := (page - 1) * pageSize
 
+	// Fetch customers from the service layer
 	customers, err := customer.CustomerService.CustomerList(offset, pageSize)
 	if err != nil {
 		log.Println("Error fetching customers:", err)
@@ -41,6 +46,7 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Convert customers to JSON
 	customerJSON, err := json.Marshal(customers)
 	if err != nil {
 		log.Println("Error marshalling customers to JSON:", err)
@@ -48,7 +54,47 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Write JSON response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(customerJSON)
+}
+func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Request) {
+	// Parse the request body to get the CSV file path
+	var requestBody map[string]string
+	err := json.NewDecoder(r.Body).Decode(&requestBody)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve filename from the request body
+	filename, ok := requestBody["filename"]
+	if !ok {
+		http.Error(w, "Missing filename in request body", http.StatusBadRequest)
+		return
+	}
+
+	// Read data from CSV file using CSVService
+	customers, successResponse, err := customer.CSVService.ReadDataFromCSV(filename)
+	if err != nil {
+		log.Println("Error reading data from CSV:", err)
+		http.Error(w, "Error reading data from CSV", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println(customers)
+
+	// Create a response map
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Data retrieved successfully",
+		"data": map[string]interface{}{
+			"success": successResponse,
+		},
+	}
+
+	// Return the response as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
