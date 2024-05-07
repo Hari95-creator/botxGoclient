@@ -51,6 +51,7 @@ func main() {
 	http.Handle("/templates/", corsMiddleware(http.HandlerFunc(whatsappController.GetAllTemplatesHandler)))
 	http.Handle("/sendmessage/", corsMiddleware(http.HandlerFunc(whatsappController.SendsingleMsg)))
 	http.Handle("/customer/data/csv/", corsMiddleware(http.HandlerFunc(customerController.ReadCsv)))
+	http.Handle("/webhook", corsMiddleware(http.HandlerFunc()))
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 	log.Println("Server Started In Port 8080")
