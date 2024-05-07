@@ -59,7 +59,9 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 	w.WriteHeader(http.StatusOK)
 	w.Write(customerJSON)
 }
-func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Request) {
+
+func (customer *CustomerController) csvFromFile(w http.ResponseWriter, r *http.Request) {
+
 	// Parse the request body to get the CSV file path
 	var requestBody map[string]string
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
@@ -77,6 +79,46 @@ func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Reque
 
 	// Read data from CSV file using CSVService
 	customers, successResponse, err := customer.CSVService.ReadDataFromCSV(filename)
+	if err != nil {
+		log.Println("Error reading data from CSV:", err)
+		http.Error(w, "Error reading data from CSV", http.StatusInternalServerError)
+		return
+	}
+
+	log.Println(customers)
+
+	// Create a response map
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Data retrieved successfully",
+		"data": map[string]interface{}{
+			"success": successResponse,
+		},
+	}
+
+	// Return the response as JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Request) {
+
+	err := r.ParseMultipartForm(30 << 20) // Set a limit on the maximum upload size (30 MB in this example)
+	if err != nil {
+		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+		return
+	}
+
+	// Get the uploaded file
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Failed to get file from form", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read data from CSV file using CSVService
+	customers, successResponse, err := customer.CSVService.ReadDataFromCSVFile(file)
 	if err != nil {
 		log.Println("Error reading data from CSV:", err)
 		http.Error(w, "Error reading data from CSV", http.StatusInternalServerError)

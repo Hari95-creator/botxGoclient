@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"mime/multipart"
 
 	"github.com/google/uuid"
 )
@@ -29,6 +30,7 @@ type Contacts struct {
 
 type CSVRepository interface {
 	ReadDataFromCSV(filename string) ([]*Contacts, map[string]interface{}, error)
+	ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[string]interface{}, error)
 }
 
 type CustomerRepository interface {
@@ -165,3 +167,80 @@ func (cu *csvRepo) ReadDataFromCSV(filename string) ([]*Contacts, map[string]int
 
 	return contacts, response, nil
 }
+
+func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[string]interface{}, error) {
+	var contacts []*Contacts
+
+	// Create a CSV reader
+	reader := csv.NewReader(file)
+
+	// Skip the header row if it exists
+	if _, err := reader.Read(); err != nil {
+		log.Println("Error reading CSV header:", err)
+		return nil, nil, err
+	}
+
+	// Prepare the SQL statement for inserting data
+	stmt, err := cu.db.Prepare("INSERT INTO public.customer (gid, phone_number, name, created_date, country_code, email) VALUES ($1, $2, $3, $4, $5, $6)")
+	if err != nil {
+		log.Println("Error preparing SQL statement:", err)
+		return nil, nil, err
+	}
+	defer stmt.Close()
+
+	// Read each record from the CSV file
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			// End of file
+			break
+		}
+		if err != nil {
+			log.Println("Error reading CSV record:", err)
+			return nil, nil, err
+		}
+
+		// Check if the record has the expected number of fields
+		if len(record) < 4 {
+			log.Println("Invalid CSV record:", record)
+			continue // Skip this record
+		}
+
+		// Generate a random UUID for gid
+		gid := uuid.New()
+
+		// Parse the country code
+		countryCode, err := strconv.Atoi(record[0])
+		if err != nil {
+			log.Println("Error converting country code to integer:", err)
+			return nil, nil, err
+		}
+
+		// Execute the SQL statement to insert data into the table
+		_, err = stmt.Exec(gid, record[1], record[2], time.Now(), countryCode, record[3])
+		if err != nil {
+			log.Println("Error inserting data into the database:", err)
+			return nil, nil, err
+		}
+
+		// Create a new contact instance and append it to the contacts slice
+		contact := &Contacts{
+			COUNTRY_CODE: countryCode,
+			PHONE_NUMBER: record[1],
+			NAME:         record[2],
+			EMAIL:        record[3],
+		}
+		contacts = append(contacts, contact)
+	}
+
+	// Create a success response JSON with contacts
+	response := map[string]interface{}{
+		"status":   "success",
+		"message":  "Data inserted successfully",
+		"date":     time.Now().Format(time.RFC3339),
+		"contacts": contacts,
+	}
+
+	return contacts, response, nil
+}
+
