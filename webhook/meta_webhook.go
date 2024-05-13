@@ -76,18 +76,20 @@ func InsertWhatsappMsgData(db *sql.DB, jsonData []byte) error {
 	message := messages[0].(map[string]interface{})
 	from := message["from"].(string)
 
+	metadata := data["metadata"].([]interface{})
+	bussinessId := metadata[0].(map[string]interface{})["bussinessId"].(string)
+	phoneNumberID := metadata[0].(map[string]interface{})["phoneNumberID"].(string)
+
 	// take when need (will apply based on logic)
 	// msgBody := message["msgBody"].(string)
 	// timestamp := message["timestamp"].(string)
 
 	// // Extracting data from contacts and metadata
 	// contacts := data["contacts"].([]interface{})
-	// metadata := data["metadata"].([]interface{})
-	// phoneNumber := metadata[0].(map[string]interface{})["displayPhoneNumber"].(string)
 
 	// _, err = db.Exec("INSERT INTO whatsapp_data (gid, sender_phone_number, message_body, message_timestamp, display_phone_number) VALUES ($1, $2, $3, $4, $5)", gid, from, msgBody, timestamp, phoneNumber)
 	// return err
 
-	_, err = db.Exec("INSERT INTO whatsapp_data (gid,sender_phone_number, message_data) VALUES ($1,$2,$3)", gid, from, string(jsonData))
+	_, err = db.Exec("INSERT INTO whatsapp_data (gid,bussiness_id,phone_number_id,sender_phone_number, message_data) VALUES ($1,$2,$3,$4,$5)", gid, bussinessId, phoneNumberID, from, string(jsonData))
 	return err
 }
