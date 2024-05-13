@@ -42,6 +42,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, payload 
 		for _, entry := range payload.Entry {
 			for _, change := range entry.Changes {
 				if len(change.Value.Messages) > 0 {
+					BussinessId := entry.ID
 					phoneNumberID := change.Value.Metadata.PhoneNumberID
 					DisplayPhoneNumber := change.Value.Metadata.DisplayPhoneNumber
 					from := change.Value.Messages[0].From
@@ -60,6 +61,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, payload 
 					metaDataResponse := map[string]interface{}{
 						"phoneNumberID":      phoneNumberID,
 						"displayPhoneNumber": DisplayPhoneNumber,
+						"bussinessId":        BussinessId,
 					}
 
 					metaDataResponses = append(metaDataResponses, metaDataResponse)
@@ -81,9 +83,11 @@ func webhookHandler(w http.ResponseWriter, r *http.Request, db *sql.DB, payload 
 		}
 
 		jsonResponse, err := json.Marshal(map[string]interface{}{
-			"metadata": metaDataResponses,
-			"messages": messageResponses,
-			"contacts": contactResponses,
+			"metadata":   metaDataResponses,
+			"messages":   messageResponses,
+			"contacts":   contactResponses,
+			"status":     "Success",
+			"statuscode": http.StatusOK,
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
