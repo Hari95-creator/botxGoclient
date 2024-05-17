@@ -19,7 +19,6 @@ func NewCustomerController(customerService model.CustomerRepository, csvService 
 	return &CustomerController{CustomerService: customerService, CSVService: csvService}
 }
 
-// ListAllCustomer returns a list of customers with pagination
 func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters for pagination
 	pageStr := r.URL.Query().Get("page")
@@ -46,20 +45,23 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Convert customers to JSON
-	customerJSON, err := json.Marshal(customers)
-	if err != nil {
-		log.Println("Error marshalling customers to JSON:", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+	// Create the response structure
+	response := map[string]interface{}{
+		"status":      "success",
+		"status_code": http.StatusOK,
+		"data": map[string]interface{}{
+			"customers": customers,
+		},
 	}
 
 	// Write JSON response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(customerJSON)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Println("Error encoding response to JSON:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
-
 func (customer *CustomerController) csvFromFile(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the request body to get the CSV file path
