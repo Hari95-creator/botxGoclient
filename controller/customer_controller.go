@@ -47,11 +47,8 @@ func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *ht
 
 	// Create the response structure
 	response := map[string]interface{}{
-		"status":      "success",
-		"status_code": http.StatusOK,
-		"data": map[string]interface{}{
-			"customers": customers,
-		},
+
+		"data": customers,
 	}
 
 	// Write JSON response
