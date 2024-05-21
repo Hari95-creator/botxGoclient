@@ -3,16 +3,13 @@
 package controller
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"net/http"
 	"time"
 	"whatbot/model"
+	"whatbot/utils"
 
-	"encoding/base64"
-	"log"
-
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type AuthResponse struct {
@@ -24,6 +21,7 @@ type AuthResponse struct {
 type Claims struct {
 	UserID   int    `json:"userId"`
 	Username string `json:"username"`
+	UserGid  string `json:"gid"`
 	jwt.StandardClaims
 }
 
@@ -33,19 +31,6 @@ type UserController struct {
 
 func NewUserController(userService model.UserRepository) *UserController {
 	return &UserController{UserService: userService}
-}
-
-func generateSecretKey(length int) (string, error) {
-	// Generate random bytes
-	randomBytes := make([]byte, length)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", err
-	}
-
-	// Encode random bytes to base64 string
-	key := base64.URLEncoding.EncodeToString(randomBytes)
-	return key, nil
 }
 
 func (uc *UserController) Login(w http.ResponseWriter, r *http.Request) {
@@ -77,46 +62,20 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if authenticated != nil {
-
-		// response := AuthResponse{
-		// 	Message:  "Login successful",
-		// 	UserID:   authenticated.ID,
-		// 	UserName: authenticated.UserName,
-		// }
-
-		// // Encode the response as JSON
-		// jsonResponse, err := json.Marshal(response)
-		// if err != nil {
-		// 	// Handle JSON encoding error
-		// 	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		// 	return
-		// }
-		// // Authentication successful
-		// w.Header().Set("Content-Type", "application/json")
-		// w.WriteHeader(http.StatusOK)
-		// w.Write(jsonResponse)
-
-		keyLength := 32
-		secretKey, err := generateSecretKey(keyLength)
-		if err != nil {
-			log.Println("Error generating secret key:", err)
-			return
-		}
 		// Generate JWT token
-		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		token := jwt.New(jwt.SigningMethodRS256)
 		claims := &Claims{
 			UserID:   authenticated.ID,
 			Username: authenticated.UserName,
+			UserGid:  authenticated.GID,
 			StandardClaims: jwt.StandardClaims{
 				ExpiresAt: time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-				// ExpiresAt: time.Now().Add(1 * time.Second).Unix(),
-
 			},
 		}
 		token.Claims = claims
 
-		// Sign the token with a secret key
-		tokenString, err := token.SignedString([]byte(secretKey))
+		// Sign the token with the RSA private key
+		tokenString, err := token.SignedString(utils.GetClientPrivateKey())
 		if err != nil {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
@@ -138,7 +97,6 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(jsonResponse)
-
 	} else {
 		// Authentication failed
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)

@@ -5,7 +5,12 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 	"whatbot/model"
+	"whatbot/utils"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // CustomerController handles HTTP requests related to customers
@@ -102,7 +107,6 @@ func (customer *CustomerController) csvFromFile(w http.ResponseWriter, r *http.R
 }
 
 func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Request) {
-
 	err := r.ParseMultipartForm(30 << 20) // Set a limit on the maximum upload size (30 MB in this example)
 	if err != nil {
 		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
@@ -117,8 +121,52 @@ func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Reque
 	}
 	defer file.Close()
 
+	tokenString := r.FormValue("token")
+	if tokenString == "" {
+		http.Error(w, "Token is required", http.StatusBadRequest)
+		return
+	}
+
+	ip := r.Header.Get("X-Real-IP")
+	if ip == "" {
+		ip = r.Header.Get("X-Forwarded-For")
+		if ip == "" {
+			ip = r.RemoteAddr
+		}
+	}
+
+	if strings.Contains(ip, ":") {
+		parts := strings.Split(ip, ":")
+		ip = parts[0]
+	}
+
+	// Initialize a new instance of `Claims`
+	claims := &Claims{}
+
+	// Parse the JWT token
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		return utils.GetClientPublicKey(), nil
+	})
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			http.Error(w, "Invalid token signature", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "Failed to parse token", http.StatusBadRequest)
+		return
+	}
+	if !token.Valid {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	// Check if token is expired
+	if claims.ExpiresAt < time.Now().Unix() {
+		http.Error(w, "Token has expired", http.StatusUnauthorized)
+		return
+	}
 	// Read data from CSV file using CSVService
-	customers, successResponse, err := customer.CSVService.ReadDataFromCSVFile(file)
+	customers, successResponse, err := customer.CSVService.ReadDataFromCSVFile(file, claims.UserID, ip)
 	if err != nil {
 		log.Println("Error reading data from CSV:", err)
 		http.Error(w, "Error reading data from CSV", http.StatusInternalServerError)
@@ -126,6 +174,7 @@ func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Reque
 	}
 
 	log.Println(customers)
+	// Create a response
 
 	// Create a response map
 	response := map[string]interface{}{

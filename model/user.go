@@ -49,8 +49,8 @@ func NewUserRepository(db *sql.DB) UserRepository {
 func (ur *userRepo) AuthenticateUser(username, password string) (*User, error) {
 	// Query the database to retrieve the user based on the username
 	user := &User{}
-	err := ur.db.QueryRow("SELECT id,users_name,login_user_name, login_user_password FROM public.users WHERE login_user_name = $1", username).
-		Scan(&user.ID, &user.UserName, &user.LoginUserName, &user.LoginUserPasswordHash)
+	err := ur.db.QueryRow("SELECT id,gid,users_name,login_user_name, login_user_password FROM public.users WHERE login_user_name = $1", username).
+		Scan(&user.ID,&user.GID, &user.UserName, &user.LoginUserName, &user.LoginUserPasswordHash)
 	if err != nil {
 		log.Println("Error retrieving user from database:", err)
 		return nil, err

@@ -5,10 +5,10 @@ import (
 	"encoding/csv"
 	"io"
 	"log"
+	"mime/multipart"
 	"os"
 	"strconv"
 	"time"
-	"mime/multipart"
 
 	"github.com/google/uuid"
 )
@@ -30,7 +30,7 @@ type Contacts struct {
 
 type CSVRepository interface {
 	ReadDataFromCSV(filename string) ([]*Contacts, map[string]interface{}, error)
-	ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[string]interface{}, error)
+	ReadDataFromCSVFile(file multipart.File, userID int,requestedIp string) ([]*Contacts, map[string]interface{}, error) // Modified method signature
 }
 
 type CustomerRepository interface {
@@ -168,7 +168,7 @@ func (cu *csvRepo) ReadDataFromCSV(filename string) ([]*Contacts, map[string]int
 	return contacts, response, nil
 }
 
-func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[string]interface{}, error) {
+func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int,requestedIp string) ([]*Contacts, map[string]interface{}, error) {
 	var contacts []*Contacts
 
 	// Create a CSV reader
@@ -181,7 +181,7 @@ func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[st
 	}
 
 	// Prepare the SQL statement for inserting data
-	stmt, err := cu.db.Prepare("INSERT INTO public.customer (gid, phone_number, name, created_date, country_code, email) VALUES ($1, $2, $3, $4, $5, $6)")
+	stmt, err := cu.db.Prepare("INSERT INTO public.customer (gid, phone_number, name, created_date, country_code, email,uploaded_by,requested_ip) VALUES ($1, $2, $3, $4, $5, $6,$7,$8)")
 	if err != nil {
 		log.Println("Error preparing SQL statement:", err)
 		return nil, nil, err
@@ -217,7 +217,7 @@ func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[st
 		}
 
 		// Execute the SQL statement to insert data into the table
-		_, err = stmt.Exec(gid, record[1], record[2], time.Now(), countryCode, record[3])
+		_, err = stmt.Exec(gid, record[1], record[2], time.Now(), countryCode, record[3], userID,requestedIp)
 		if err != nil {
 			log.Println("Error inserting data into the database:", err)
 			return nil, nil, err
@@ -243,4 +243,3 @@ func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File) ([]*Contacts, map[st
 
 	return contacts, response, nil
 }
-
