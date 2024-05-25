@@ -30,13 +30,12 @@ type Contacts struct {
 
 type CSVRepository interface {
 	ReadDataFromCSV(filename string) ([]*Contacts, map[string]interface{}, error)
-	ReadDataFromCSVFile(file multipart.File, userID int,requestedIp string) ([]*Contacts, map[string]interface{}, error) // Modified method signature
+	ReadDataFromCSVFile(file multipart.File, userID int, requestedIp string) ([]*Contacts, map[string]interface{}, error) // Modified method signature
 }
 
 type CustomerRepository interface {
-	CustomerList(offset, limit int) ([]*Customer, error)
+	CustomerList(offset, limit int) ([]*Customer, int, error)
 }
-
 type customerRepo struct {
 	db *sql.DB
 }
@@ -53,15 +52,13 @@ func NewCsvRepository(db *sql.DB) CSVRepository {
 	return &csvRepo{db: db}
 }
 
-func (cu *customerRepo) CustomerList(offset, limit int) ([]*Customer, error) {
+func (cu *customerRepo) CustomerList(offset, limit int) ([]*Customer, int, error) {
 	var customers []*Customer
-
-	// Modify the SQL query to include pagination
 	query := "SELECT id, gid, phone_number, name, created_date FROM public.customer LIMIT $1 OFFSET $2"
 	rows, err := cu.db.Query(query, limit, offset)
 	if err != nil {
 		log.Println("Error retrieving customers from database:", err)
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -77,12 +74,18 @@ func (cu *customerRepo) CustomerList(offset, limit int) ([]*Customer, error) {
 
 	if err := rows.Err(); err != nil {
 		log.Println("Error iterating over customer rows:", err)
-		return nil, err
+		return nil, 0, err
 	}
 
-	return customers, nil
-}
+	var total int
+	err = cu.db.QueryRow("SELECT COUNT(*) FROM public.customer").Scan(&total)
+	if err != nil {
+		log.Println("Error retrieving customer count from database:", err)
+		return nil, 0, err
+	}
 
+	return customers, total, nil
+}
 func (cu *csvRepo) ReadDataFromCSV(filename string) ([]*Contacts, map[string]interface{}, error) {
 	var contacts []*Contacts
 
@@ -168,7 +171,7 @@ func (cu *csvRepo) ReadDataFromCSV(filename string) ([]*Contacts, map[string]int
 	return contacts, response, nil
 }
 
-func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int,requestedIp string) ([]*Contacts, map[string]interface{}, error) {
+func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int, requestedIp string) ([]*Contacts, map[string]interface{}, error) {
 	var contacts []*Contacts
 
 	// Create a CSV reader
@@ -217,7 +220,7 @@ func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int,requested
 		}
 
 		// Execute the SQL statement to insert data into the table
-		_, err = stmt.Exec(gid, record[1], record[2], time.Now(), countryCode, record[3], userID,requestedIp)
+		_, err = stmt.Exec(gid, record[1], record[2], time.Now(), countryCode, record[3], userID, requestedIp)
 		if err != nil {
 			log.Println("Error inserting data into the database:", err)
 			return nil, nil, err
