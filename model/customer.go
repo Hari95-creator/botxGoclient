@@ -28,6 +28,12 @@ type Contacts struct {
 	EMAIL        string
 }
 
+type Country struct {
+	ID          int    `json:"id"`
+	CountryCode int    `json:"country_code"`
+	CountryName string `json:"country_name"`
+}
+
 type CSVRepository interface {
 	ReadDataFromCSV(filename string) ([]*Contacts, map[string]interface{}, error)
 	ReadDataFromCSVFile(file multipart.File, userID int, requestedIp string) ([]*Contacts, map[string]interface{}, error) // Modified method signature
@@ -36,11 +42,20 @@ type CSVRepository interface {
 type CustomerRepository interface {
 	CustomerList(offset, limit int) ([]*Customer, int, error)
 }
+
+type CountryRepository interface {
+	GetAllCountries() ([]Country, error)
+	GetCountriesByCode(countryCode string) ([]Country, error)
+}
+
 type customerRepo struct {
 	db *sql.DB
 }
 
 type csvRepo struct {
+	db *sql.DB
+}
+type countryRepo struct {
 	db *sql.DB
 }
 
@@ -50,6 +65,9 @@ func NewCustomerRepository(db *sql.DB) CustomerRepository {
 
 func NewCsvRepository(db *sql.DB) CSVRepository {
 	return &csvRepo{db: db}
+}
+func NewCountryRepository(db *sql.DB) CountryRepository {
+	return &countryRepo{db: db}
 }
 
 func (cu *customerRepo) CustomerList(offset, limit int) ([]*Customer, int, error) {
@@ -174,7 +192,6 @@ func (cu *csvRepo) ReadDataFromCSV(filename string) ([]*Contacts, map[string]int
 func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int, requestedIp string) ([]*Contacts, map[string]interface{}, error) {
 	var contacts []*Contacts
 
-	// Create a CSV reader
 	reader := csv.NewReader(file)
 
 	// Skip the header row if it exists
@@ -245,4 +262,50 @@ func (cu *csvRepo) ReadDataFromCSVFile(file multipart.File, userID int, requeste
 	}
 
 	return contacts, response, nil
+}
+func (cu *countryRepo) GetAllCountries() ([]Country, error) {
+	query := "SELECT id, country_code, country_name FROM public.country_codes"
+	rows, err := cu.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var countries []Country
+	for rows.Next() {
+		var country Country
+		if err := rows.Scan(&country.ID, &country.CountryCode, &country.CountryName); err != nil {
+			return nil, err
+		}
+		countries = append(countries, country)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return countries, nil
+}
+
+func (cu *countryRepo) GetCountriesByCode(countryCode string) ([]Country, error) {
+	query := "SELECT id, country_code, country_name FROM public.country_codes WHERE country_code = $1"
+	rows, err := cu.db.Query(query, countryCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var countries []Country
+	for rows.Next() {
+		var country Country
+		if err := rows.Scan(&country.ID, &country.CountryCode, &country.CountryName); err != nil {
+			return nil, err
+		}
+		countries = append(countries, country)
+	}
+
+	if err := rows.Err(); err != nil{
+		return nil, err
+	}
+	return countries, nil
 }

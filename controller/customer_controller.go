@@ -19,6 +19,7 @@ import (
 type CustomerController struct {
 	CustomerService model.CustomerRepository
 	CSVService      model.CSVRepository
+	CountryService  model.CountryRepository
 }
 
 type Customer struct {
@@ -56,9 +57,14 @@ type ResponsePayload struct {
 	} `json:"payload"`
 }
 
-func NewCustomerController(customerService model.CustomerRepository, csvService model.CSVRepository) *CustomerController {
-	return &CustomerController{CustomerService: customerService, CSVService: csvService}
+func NewCustomerController(customerService model.CustomerRepository, csvService model.CSVRepository, countryService model.CountryRepository) *CustomerController {
+	return &CustomerController{
+		CustomerService: customerService,
+		CSVService:      csvService,
+		CountryService:  countryService,
+	}
 }
+
 func (customer *CustomerController) ListAllCustomer(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	pageSizeStr := r.URL.Query().Get("pageSize")
@@ -245,3 +251,38 @@ func (customer *CustomerController) ReadCsv(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+func (customer *CustomerController) CountriesHandler(w http.ResponseWriter, r *http.Request) {
+	
+	countryCode := r.URL.Query().Get("code")
+	if countryCode != "" {
+		countries, err := customer.CountryService.GetCountriesByCode(countryCode)
+		if err != nil {
+			http.Error(w, "Failed to fetch countries", http.StatusInternalServerError)
+			return
+		}
+
+		if len(countries) == 0 {
+			http.Error(w, "No countries found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(countries)
+		return
+	}
+	countries, err := customer.CountryService.GetAllCountries()
+	if err != nil {
+		http.Error(w, "Failed to fetch countries", http.StatusInternalServerError)
+		return
+	}
+
+	if countries == nil {
+		http.Error(w, "No countries found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(countries)
+}
+

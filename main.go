@@ -120,7 +120,8 @@ func StartHTTPServer(db *sql.DB) {
 
 	customerRepository := model.NewCustomerRepository(db)
 	csvRepository := model.NewCsvRepository(db)
-	customerController := controller.NewCustomerController(customerRepository, csvRepository)
+	countryRepo := model.NewCountryRepository(db)  // Add this line
+	customerController := controller.NewCustomerController(customerRepository, csvRepository,countryRepo)
 
 	whatsappController := controller.TemplateController{}
 
@@ -144,6 +145,7 @@ func StartHTTPServer(db *sql.DB) {
 	http.Handle("/templates/", corsMiddleware(http.HandlerFunc(whatsappController.GetAllTemplatesHandler)))
 	http.Handle("/sendmessage/", corsMiddleware(http.HandlerFunc(whatsappController.SendsingleMsg)))
 	http.Handle("/customer/data/csv/", corsMiddleware(http.HandlerFunc(customerController.ReadCsv)))
+	http.Handle("/countries", corsMiddleware(http.HandlerFunc(customerController.CountriesHandler)))
 
 	log.Printf("Starting HTTP server on port %d...\n", PORT)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT), nil))
